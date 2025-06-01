@@ -1,4 +1,4 @@
-name: Create Release
+name: Create Release on Main Push
 
 on:
   push:
@@ -21,8 +21,18 @@ jobs:
         run: echo "DATE=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
 
       - name: Create ZIP archive
+        id: archive
         run: |
           zip -r release-${{ env.DATE }}.zip . -x ".github/*" -x ".git/*"
+          echo "ZIP_NAME=release-${{ env.DATE }}.zip" >> $GITHUB_ENV # ZIPファイル名を環境変数に設定
+
+      - name: Calculate SHA1 checksum
+        id: sha1
+        run: |
+          checksum=$(sha1sum ${{ env.ZIP_NAME }} | awk '{ print $1 }')
+          echo "Checksum: $checksum"
+          echo "SHA1_CHECKSUM=$checksum" >> $GITHUB_ENV # SHA1ハッシュ値を環境変数に設定
+          echo "sha1_value=$checksum" >> $GITHUB_OUTPUT # 出力変数として設定 (create-releaseアクションで直接参照するため)
 
       - name: Create Release
         id: create_release
@@ -32,6 +42,8 @@ jobs:
         with:
           tag_name: v${{ env.DATE }}
           release_name: Release ${{ env.DATE }}
+          body: |
+            SHA1 Checksum: ${{ steps.sha1.outputs.sha1_value }}
           draft: false
           prerelease: false
 
@@ -41,6 +53,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-${{ env.DATE }}.zip
-          asset_name: release-${{ env.DATE }}.zip
+          asset_path: ./${{ env.ZIP_NAME }}
+          asset_name: ${{ env.ZIP_NAME }}
           asset_content_type: application/zip
