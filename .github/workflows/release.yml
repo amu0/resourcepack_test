@@ -18,7 +18,7 @@ jobs:
 
       - name: Get current date
         id: date
-        run: echo "DATE=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+        run: echo "DATE=$(TZ='Asia/Tokyo' date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
 
       - name: Create ZIP archive
         id: archive
