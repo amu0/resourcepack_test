@@ -18,13 +18,13 @@ jobs:
 
       - name: Get current date
         id: date
-        run: echo "DATE=$(TZ='Asia/Tokyo' date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+        run: echo "DATE=$(TZ='Asia/Tokyo' date +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_ENV
 
       - name: Create ZIP archive
         id: archive
         run: |
-          zip -r release-${{ env.DATE }}.zip . -x ".github/*" -x ".git/*"
-          echo "ZIP_NAME=release-${{ env.DATE }}.zip" >> $GITHUB_ENV # ZIPファイル名を環境変数に設定
+          zip -r release_${{ env.DATE }}.zip . -x ".github/*" -x ".git/*"
+          echo "ZIP_NAME=release_${{ env.DATE }}.zip" >> $GITHUB_ENV # ZIPファイル名を環境変数に設定
 
       - name: Calculate SHA1 checksum
         id: sha1
