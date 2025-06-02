@@ -6,7 +6,8 @@ on:
 
 env:
   # server.propertiesを格納しているリポジトリとブランチ
-  SERVER_REPOSITORY: "amu0/test-repository"
+  SERVER_REPOSITORY_OWNER: "amu0"
+  SERVER_REPOSITORY: "test-repository"
   SERVER_REPOSITORY_BRANCH: "main"
 
 jobs:
@@ -71,12 +72,13 @@ jobs:
         with:
           app-id: ${{vars.GHAPP_APPID}}
           private-key: ${{secrets.GHAPP_PRIVATE_KEY}}
+          owner: ${{env.SERVER_REPOSITORY_OWNER}}
           repositories: ${{env.SERVER_REPOSITORY}}
 
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: ${{env.SERVER_REPOSITORY}}
+          repository: ${{env.SERVER_REPOSITORY_OWNER}}/${{env.SERVER_REPOSITORY}}
           ref: ${{env.SERVER_REPOSITORY_BRANCH}}
           token: ${{ steps.app-token.outputs.token }}
           sparse-checkout: config/server.properties
