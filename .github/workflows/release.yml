@@ -57,6 +57,7 @@ jobs:
           draft: false
           prerelease: false
           files: resource.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   # 別リポジトリにあるserver.propertiesを更新し、リリースしたリソースパックを反映させる。
   update-server-properties:
