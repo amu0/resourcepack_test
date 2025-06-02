@@ -1,58 +1,104 @@
-name: Create Release on Main Push
-
+name: Create Archive
 on:
   push:
     branches:
       - main
 
+env:
+  # server.propertiesを格納しているリポジトリとブランチ
+  SERVER_REPOSITORY: "amu0/test-repository"
+  SERVER_REPOSITORY_BRANCH: "main"
+
 jobs:
-  create_release:
-    name: Create Release
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      resourcepack_url: ${{ fromJSON(steps.create_release.outputs.assets)[0].browser_download_url }}
+      resourcepack_sha1: ${{ steps.sha1.outputs.sha1_value }}
+      commit_hash: ${{env.SHORT_SHA}}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Get current date
-        id: date
-        run: echo "DATE=$(TZ='Asia/Tokyo' date +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_ENV
+      - name: Set Time
+        env:
+          TZ: "Asia/Tokyo" # タイムゾーン指定
+        run: echo "CURRENT_DATETIME=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
 
-      - name: Create ZIP archive
-        id: archive
-        run: |
-          zip -r release_${{ env.DATE }}.zip . -x ".github/*" -x ".git/*"
-          echo "ZIP_NAME=release_${{ env.DATE }}.zip" >> $GITHUB_ENV # ZIPファイル名を環境変数に設定
+      - name: get hash
+        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: edit pack.mcmeta
+        run: python -c "import json; mcmeta = json.load(open('pack.mcmeta',mode='r')); mcmeta['pack']['description'] += '\n§fCommit ${{ env.SHORT_SHA }}'; json.dump(mcmeta,open('pack.mcmeta',mode='w'),indent=2)"
+
+      - name: Archive Release
+        uses: thedoctor0/zip-release@main
+        with:
+          type: "zip"
+          filename: resource.zip
+          exclusions: "*.git*"
 
       - name: Calculate SHA1 checksum
         id: sha1
         run: |
           checksum=$(sha1sum ${{ env.ZIP_NAME }} | awk '{ print $1 }')
           echo "Checksum: $checksum"
-          echo "SHA1_CHECKSUM=$checksum" >> $GITHUB_ENV # SHA1ハッシュ値を環境変数に設定
-          echo "sha1_value=$checksum" >> $GITHUB_OUTPUT # 出力変数として設定 (create-releaseアクションで直接参照するため)
+          echo "SHA1_CHECKSUM=$checksum" >> $GITHUB_ENV
+          echo "sha1_value=$checksum" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ env.DATE }}
-          release_name: Release ${{ env.DATE }}
+          tag_name: ${{ env.CURRENT_DATETIME }}
+          name: ${{ env.CURRENT_DATETIME }}
           body: |
             SHA1 Checksum: ${{ steps.sha1.outputs.sha1_value }}
           draft: false
           prerelease: false
+          files: resource.zip
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # 別リポジトリにあるserver.propertiesを更新し、リリースしたリソースパックを反映させる。
+  update-server-properties:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Get GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: app-token
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.ZIP_NAME }}
-          asset_name: ${{ env.ZIP_NAME }}
-          asset_content_type: application/zip
+          app-id: ${{vars.GHAPP_APPID}}
+          private-key: ${{secrets.GHAPP_PRIVATE_KEY}}
+          repositories: ${{env.SERVER_REPOSITORY}}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{env.SERVER_REPOSITORY}}
+          ref: ${{env.SERVER_REPOSITORY_BRANCH}}
+          token: ${{ steps.app-token.outputs.token }}
+          sparse-checkout: config/server.properties
+
+      - name: Edit server.properties
+        uses: christian-draeger/write-properties@1.1.0
+        with:
+          path: config/server.properties
+          property: |
+            "resource-pack"
+            "resource-pack-sha1"
+          value: |
+            ${{needs.build.outputs.resourcepack_url}}
+            ${{needs.build.outputs.resourcepack_sha1}}
+
+      - name: commit and push
+        env:
+          COMMIT_MESSAGE: "Update server.properties: resource pack from commit ${{ needs.build.outputs.commit_hash }}"
+        run: |
+          git config --global user.name "colony-craft[bot]"
+          git config --global user.email "${{vars.GHAPP_APPID}}+colony-craft[bot]@users.noreply.github.com"
+          git add config/server.properties
+          git commit -m "${COMMIT_MESSAGE}"
+          git push
