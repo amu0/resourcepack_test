@@ -90,7 +90,7 @@ jobs:
 
       - name: commit and push
         env:
-          COMMIT_MESSAGE: "Update server.properties (${{ needs.build.outputs.commit_hash }})"
+          COMMIT_MESSAGE: "Update ResourcePack (${{ needs.build.outputs.commit_hash }})"
         run: |
           git config --global user.name "colony-craft[bot]"
           git config --global user.email "${{vars.GHAPP_APPID}}+colony-craft[bot]@users.noreply.github.com"
