@@ -42,7 +42,7 @@ jobs:
       - name: Calculate SHA1 checksum
         id: sha1
         run: |
-          checksum=$(sha1sum ${{ env.ZIP_NAME }} | awk '{ print $1 }')
+          checksum=$(sha1sum resource.zip | awk '{ print $1 }')
           echo "Checksum: $checksum"
           echo "SHA1_CHECKSUM=$checksum" >> $GITHUB_ENV
           echo "sha1_value=$checksum" >> $GITHUB_OUTPUT
