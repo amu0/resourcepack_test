@@ -85,9 +85,10 @@ jobs:
 
       - name: Edit server.properties
         run: |
-          url=$(echo ${{needs.build.outputs.resourcepack_url}} | sed 's#:#\\:#g')
-          sed -i 's#^resource-pack=.*#resource-pack='"$url"'#g' config/server.properties
-          sed -i 's#^resource-pack-sha1=.*#resource-pack-sha1=${{needs.build.outputs.resourcepack_sha1}}#g' config/server.properties
+          url=$(echo ${{needs.build.outputs.resourcepack_url}} | sed 's#:#\\\\:#g')
+          echo $url
+          sed -i "s#^resource-pack=.*#resource-pack=$url#g" config/server.properties
+          sed -i "s#^resource-pack-sha1=.*#resource-pack-sha1=${{needs.build.outputs.resourcepack_sha1}}#g" config/server.properties
 
       - name: commit and push
         env:
